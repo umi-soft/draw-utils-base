@@ -1,0 +1,22 @@
+{
+  "name": "draw-utils-base-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@loongbao-web-gis-utils/draw-utils-base-core": "workspace:*",
+    "@loongbao-web-gis-utils/draw-utils-base-openlayer": "workspace:*",
+    "ol": "10.9.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.0.10"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true
+  },
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/adapter-openlayer" }
+  ],
+  "files": []
+}

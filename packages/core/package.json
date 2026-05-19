@@ -1,0 +1,12 @@
+{
+  "name": "@loongbao-web-gis-utils/draw-utils-base-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "true",
+    "test": "vitest run"
+  }
+}
