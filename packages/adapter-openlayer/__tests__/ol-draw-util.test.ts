@@ -1054,3 +1054,42 @@ describe('名称生成工具', () => {
     expect(name1).not.toBe(name2)
   })
 })
+
+// ========= Icon 工具 =========
+
+describe('内置 Icon 工具', () => {
+  it('getBuiltinIcon 生成 PNG data-URI', async () => {
+    // mock Canvas API for Node environment
+    const origCreateElement = globalThis.document?.createElement
+    if (!globalThis.document) {
+      ;(globalThis as any).document = {
+        createElement(_tag: string) {
+          const scratch: any = { width: 0, height: 0, style: {} }
+          scratch.getContext = () => ({
+            arc() {}, beginPath() {}, closePath() {}, fill() {}, moveTo() {}, lineTo() {},
+            get globalAlpha() { return 1 }, set globalAlpha(_v: number) {},
+            get fillStyle() { return '#000' }, set fillStyle(_v: string) {},
+          })
+          scratch.toDataURL = () => 'data:image/png;base64,mock'
+          return scratch
+        },
+      }
+    }
+    const { getBuiltinIcon } = await import('../src/utils/icon')
+    const uri = getBuiltinIcon('red')
+    expect(uri).toContain('data:image/png')
+    // restore
+    if (origCreateElement != null) {
+      globalThis.document.createElement = origCreateElement
+    } else if ((globalThis as any).document) {
+      delete (globalThis as any).document
+    }
+  })
+
+  it('相同颜色返回缓存结果', async () => {
+    const { getBuiltinIcon } = await import('../src/utils/icon')
+    const a = getBuiltinIcon('red')
+    const b = getBuiltinIcon('red')
+    expect(a).toBe(b)
+  })
+})

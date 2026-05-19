@@ -5,7 +5,7 @@ import VectorLayer from 'ol/layer/Vector.js'
 import Point from 'ol/geom/Point.js'
 import LineString from 'ol/geom/LineString.js'
 import Polygon from 'ol/geom/Polygon.js'
-import { Style, Stroke, Fill, Circle as CircleStyle } from 'ol/style.js'
+import { Style, Stroke, Fill, Circle as CircleStyle, Icon } from 'ol/style.js'
 import Modify from 'ol/interaction/Modify.js'
 import Translate from 'ol/interaction/Translate.js'
 import Collection from 'ol/Collection.js'
@@ -31,10 +31,10 @@ import {
 import {
   createFeatureStyle,
   createNameStyle,
-  createIconStyle,
   createAreaTextStyle,
   createLengthTextStyle as createLengthStyle,
 } from './utils/style'
+import { getBuiltinIcon } from './utils/icon'
 
 const SOURCE_KEY = '__draw_util_info__'
 const IS_GHOST_KEY = '__is_ghost__'
@@ -112,7 +112,6 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
     const isHighlight = this.highlightedFeature === feature
     styles.push(createFeatureStyle(info, isHighlight, resolution))
     styles.push(createNameStyle(info, resolution))
-    styles.push(createIconStyle(info, resolution))
     return styles
   }
 
@@ -187,7 +186,7 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
   addFeature(info: FeatureInfo): boolean {
     if (!info.wkt) return false
     if (this.features.has(info.id)) return false
-    const geom = parseWkt(info.wkt)
+    const geom = this.parseFeatureGeometry(info)
     const detail = { ...info.detail }
     if (!detail.name) { (detail as Record<string, unknown>).name = generateRandomName() }
     const feature = new Feature(geom)
@@ -202,24 +201,32 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
     if (!info.wkt) return false
     const record = this.features.get(info.id)
     if (!record) return false
-    // 若正在编辑该要素，先关闭编辑
     if (this.state === DrawState.EDITING && this.currentInfo?.id === info.id) {
       this.teardownEditInteractions()
       this.state = DrawState.IDLE
       this.currentInfo = null
       if (this.editGhost) { this.vectorSource.removeFeature(this.editGhost); this.editGhost = null }
     }
-    // 移除旧要素和装饰
     this.removeDecorations(String(info.id))
     this.vectorSource.removeFeature(record.feature)
-    // 创建新要素
-    const geom = parseWkt(info.wkt)
+    const geom = this.parseFeatureGeometry(info)
     const newFeature = new Feature(geom)
     newFeature.set(SOURCE_KEY, { ...info } as FeatureInfo)
     this.vectorSource.addFeature(newFeature)
     this.features.set(info.id, { feature: newFeature, info: { ...info } as FeatureInfo })
     this.addDecorations(info, geom, String(info.id))
     return true
+  }
+
+  /** 解析要素几何：圆形 WKT 为圆心 Point，需展开为 Polygon */
+  private parseFeatureGeometry(info: FeatureInfo): Geometry {
+    const geom = parseWkt(info.wkt!)
+    if (info.type === 'circle') {
+      const center = (geom as Point).getCoordinates() as [number, number]
+      const r = (info.detail as { radius: number }).radius
+      return new Polygon([generateCircleCoords(toCoord(center), r).map(toOlCoord)])
+    }
+    return geom
   }
 
   clear(callback?: (features: FeatureInfo[]) => void): boolean {
@@ -267,9 +274,8 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
       try {
         const area = sphericalArea(extractCoords(geom))
         if (area > 0) {
-          // 显式计算中心点放置面积标签（避免 OL getInteriorPoint 偏差）
           const coords = extractCoords(geom)
-          const n = coords.length - 1  // 排除闭合顶点
+          const n = coords.length - 1
           let cx = 0; let cy = 0
           for (let i = 0; i < n; i++) { cx += coords[i][0]; cy += coords[i][1] }
           cx /= n; cy /= n
@@ -291,9 +297,14 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
       const f = new Feature({ geometry: new Point([cx - 0.0001, cy]) })
       f.setStyle(createLengthStyle(radiusM, [cx - 0.0001, cy]))
       this.addDeco(f, ownerId)
-      return
+      // 圆形后继续走 icon 装饰
     }
+    // 非点类型的 icon 装饰：在中心点放置图标
     if (t !== 'point') {
+      this.addIconDecoration(info, geom, ownerId)
+    }
+    if (t !== 'point' && t !== 'circle') {
+      // circle 走上面的半径装饰，不走通用边长
       const coords = extractCoords(geom)
       const segments = computeSegmentLengths(coords)
       for (const seg of segments) {
@@ -302,6 +313,23 @@ export class OlDrawUtil extends IWebGisDrawBasicUtil {
         this.addDeco(f, ownerId)
       }
     }
+  }
+
+  private addIconDecoration(info: FeatureInfo, geom: Geometry, ownerId: string): void {
+    const d = info.detail as unknown as Record<string, unknown>
+    const iconSrc = d.iconSrc as string | undefined
+    if (!iconSrc) return
+    const coords = extractCoords(geom)
+    if (coords.length === 0) return
+    const isPolygon = geom.getType() === 'Polygon'
+    const n = isPolygon ? coords.length - 1 : coords.length
+    let cx = 0; let cy = 0
+    for (let i = 0; i < n; i++) { cx += coords[i][0]; cy += coords[i][1] }
+    cx /= n; cy /= n
+    const f = new Feature({ geometry: new Point(toOlCoord([cx, cy])) })
+    const src = iconSrc.includes('://') || iconSrc.includes('/') ? iconSrc : getBuiltinIcon(iconSrc)
+    f.setStyle(new Style({ image: new Icon({ src, size: [64, 64], scale: 0.6, anchor: [0.5, 1] }) }))
+    this.addDeco(f, ownerId)
   }
 
   /** 编辑中节流刷新装饰 + 中点同步（60ms）*/

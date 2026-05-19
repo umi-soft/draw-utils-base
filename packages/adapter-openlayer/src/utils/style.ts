@@ -1,11 +1,15 @@
 import { Style, Stroke, Fill, Text, Circle as CircleStyle, Icon } from 'ol/style.js'
 import Point from 'ol/geom/Point.js'
 import type { FeatureInfo, PointInfo, RectInfo, LineInfo } from '@loongbao-web-gis-utils/draw-utils-base-core'
+import { getBuiltinIcon } from './icon'
 
 type DetailInfo = PointInfo | RectInfo | LineInfo
 
 const HIGHLIGHT_SCALE = 1.5
-const ZOOM_REF_RES = 150
+const ZOOM_MIN_SCALE = 1.2
+const ZOOM_MAX_SCALE = 2.0
+const ZOOM_MIN_LEVEL = 5
+const ZOOM_MAX_LEVEL = 18
 
 function parseRgba(rgba: string): number[] {
   const m = rgba.match(/[\d.]+/g)!
@@ -17,10 +21,19 @@ function hasArea(type: string): boolean {
 }
 
 function zoomFactor(resolution: number): number {
-  return Math.min(3, Math.max(0.5, ZOOM_REF_RES / resolution))
+  const zoom0Res = resolution > 10 ? 156543 : 1.40625
+  const zoom = Math.log2(zoom0Res / resolution)
+  const t = Math.min(1, Math.max(0, (zoom - ZOOM_MIN_LEVEL) / (ZOOM_MAX_LEVEL - ZOOM_MIN_LEVEL)))
+  return ZOOM_MIN_SCALE + (ZOOM_MAX_SCALE - ZOOM_MIN_SCALE) * t
 }
 
-export function createFeatureStyle(featureInfo: FeatureInfo, highlight = false, resolution = ZOOM_REF_RES): Style {
+function resolveIconSrc(iconSrc: string): string {
+  if (!iconSrc) return ''
+  if (iconSrc.includes('://') || iconSrc.includes('/')) return iconSrc
+  return getBuiltinIcon(iconSrc)
+}
+
+export function createFeatureStyle(featureInfo: FeatureInfo, highlight = false, resolution = 1): Style {
   const { type, detail } = featureInfo
   const d = detail as DetailInfo
 
@@ -39,8 +52,9 @@ function createPointStyle(info: PointInfo, highlight: boolean, resolution: numbe
 
   if (info.iconSrc) {
     const scale = highlight ? HIGHLIGHT_SCALE * z : z
+    const src = resolveIconSrc(info.iconSrc)
     return new Style({
-      image: new Icon({ src: info.iconSrc, scale, anchor: [0.5, 1] }),
+      image: new Icon({ src, size: [64, 64], scale, anchor: [0.5, 1] }),
     })
   }
 
@@ -85,7 +99,7 @@ function createLineStyle(d: DetailInfo, highlight: boolean): Style {
   })
 }
 
-export function createNameStyle(featureInfo: FeatureInfo, resolution = ZOOM_REF_RES): Style {
+export function createNameStyle(featureInfo: FeatureInfo, resolution = 1): Style {
   const d = featureInfo.detail as DetailInfo
   if (!d.name) return new Style({})
 
@@ -105,17 +119,18 @@ export function createNameStyle(featureInfo: FeatureInfo, resolution = ZOOM_REF_
   })
 }
 
-export function createIconStyle(featureInfo: FeatureInfo, resolution = ZOOM_REF_RES): Style {
+export function createIconStyle(featureInfo: FeatureInfo, resolution = 1): Style {
   const d = featureInfo.detail as DetailInfo
   if (!('iconSrc' in d) || !d.iconSrc) return new Style({})
 
   const z = zoomFactor(resolution)
+  const src = resolveIconSrc(d.iconSrc as string)
   return new Style({
-    image: new Icon({ src: d.iconSrc as string, scale: z, anchor: [0.5, 1] }),
+    image: new Icon({ src, size: [64, 64], scale: z, anchor: [0.5, 1] }),
   })
 }
 
-export function createAreaTextStyle(areaMeters: number, _resolution = ZOOM_REF_RES): Style {
+export function createAreaTextStyle(areaMeters: number, _resolution = 1): Style {
   const text = areaMeters >= 1_000_000
     ? `${(areaMeters / 1_000_000).toFixed(2)} km²`
     : `${areaMeters.toFixed(2)} m²`
@@ -133,7 +148,7 @@ export function createAreaTextStyle(areaMeters: number, _resolution = ZOOM_REF_R
   })
 }
 
-export function createLengthTextStyle(meters: number, coord: [number, number], _resolution = ZOOM_REF_RES): Style {
+export function createLengthTextStyle(meters: number, coord: [number, number], _resolution = 1): Style {
   const text = meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${meters.toFixed(2)} m`
 
   return new Style({

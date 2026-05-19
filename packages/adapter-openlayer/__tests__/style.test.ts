@@ -48,7 +48,7 @@ describe('style 工具函数', () => {
       expect(s.getImage()).toBeInstanceOf(Icon)
     })
 
-    it('生成点要素 icon 模式高亮样式（scale 1.5）', () => {
+    it('生成点要素 icon 模式高亮样式（scale 1.5 * zoomFactor）', () => {
       const info: FeatureInfo = {
         id: '1',
         type: 'point',
@@ -61,7 +61,8 @@ describe('style 工具函数', () => {
       }
       const s = createFeatureStyle(info, true)
       const img = s.getImage() as Icon
-      expect(img.getScale()).toBe(1.5)
+      // HIGHLIGHT_SCALE(1.5) * zoomFactor(default_res=1) = 1.5 * 1.2 = 1.8
+      expect(img.getScale()).toBeCloseTo(1.8, 1)
     })
 
     it('无alpha的rgba字符串正常解析', () => {

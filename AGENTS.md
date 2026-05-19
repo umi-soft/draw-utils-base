@@ -36,7 +36,8 @@
 
 1. GIS框架严格约束版本，都需要以 Adapter 模式完成适配
 
-- ol 版本：= 10.9.0 
+- ol 版本：= 10.9.0
+- MapLibre GL JS 版本： = 5.24.0
 
 2. Node 版本: >= 22.2.2
 3. pnpm 版本： >= 10.33.0，"onlyBuiltDependencies": ["esbuild"]
