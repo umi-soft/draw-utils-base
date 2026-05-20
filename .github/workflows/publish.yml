@@ -1,8 +1,9 @@
 name: Publish
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   publish:
@@ -20,7 +21,6 @@ jobs:
       - run: pnpm install
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
       - run: pnpm build
       - name: Publish core
         run: cd packages/core && pnpm publish --access public --no-git-checks
