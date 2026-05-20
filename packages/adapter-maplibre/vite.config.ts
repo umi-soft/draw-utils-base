@@ -5,12 +5,12 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'DrawUtilsBaseOpenlayer',
+      name: 'DrawUtilsBaseMaplibre',
       formats: ['es'],
       fileName: () => 'index.js',
     },
     rollupOptions: {
-      external: (id: string) => /^ol(\/.*)?$/.test(id) || /^vue(\/.*)?$/.test(id) || /^maplibre-gl(\/.*)?$/.test(id),
+      external: (id: string) => /^maplibre-gl(\/.*)?$/.test(id) || /^vue(\/.*)?$/.test(id) || /^ol(\/.*)?$/.test(id),
     },
     sourcemap: false,
   },

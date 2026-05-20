@@ -6,7 +6,8 @@
   },
   "references": [
     { "path": "./packages/core" },
-    { "path": "./packages/adapter-openlayer" }
+    { "path": "./packages/adapter-openlayer" },
+    { "path": "./packages/adapter-maplibre" }
   ],
   "files": []
 }

@@ -10,7 +10,9 @@
   "dependencies": {
     "@loongbao-web-gis-utils/draw-utils-base-core": "workspace:*",
     "@loongbao-web-gis-utils/draw-utils-base-openlayer": "workspace:*",
+    "@loongbao-web-gis-utils/draw-utils-base-maplibre": "workspace:*",
     "ol": "10.9.0",
+    "maplibre-gl": "5.24.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {

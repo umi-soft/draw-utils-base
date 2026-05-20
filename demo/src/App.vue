@@ -4,6 +4,14 @@
     <aside class="w-72 bg-gray-900 text-white flex flex-col p-3 gap-1.5 text-sm overflow-y-auto shrink-0">
       <h2 class="text-base font-bold mb-1">绘图工具演示</h2>
 
+      <div class="bg-gray-800 rounded p-2 flex items-center gap-2">
+        <span class="text-gray-400 text-xs">框架：</span>
+        <select v-model="framework" class="bg-gray-700 rounded px-2 py-1 text-xs text-white flex-1">
+          <option value="ol">OpenLayer (10.9)</option>
+          <option value="ml">MapLibre (5.24)</option>
+        </select>
+      </div>
+
       <div class="bg-gray-800 rounded p-2">
         <span class="text-gray-400">状态：</span>
         <span class="font-mono" :class="stateColor">{{ stateText }}</span>
@@ -36,8 +44,8 @@
         <h3 class="text-xs text-gray-400 font-semibold mt-2">属性编辑</h3>
         <div class="bg-gray-800 rounded p-2 flex flex-col gap-1.5">
 
-          <div v-if="!isPointType">
-            <label class="text-gray-500 text-xs">icon (URL)</label>
+          <div>
+            <label class="text-gray-500 text-xs">icon (URL/颜色名)</label>
             <input v-model="editDetail.iconSrc" class="w-full bg-gray-700 rounded px-2 py-1 text-xs text-white" placeholder="留空=无icon" />
             <div class="flex gap-1 mt-1 flex-wrap">
               <div v-for="ic in iconPresets" :key="ic" class="w-5 h-5 rounded cursor-pointer border border-gray-600 hover:border-white"
@@ -115,6 +123,7 @@ import { useGeographic } from 'ol/proj.js'
 import TileLayer from 'ol/layer/Tile.js'
 import XYZ from 'ol/source/XYZ.js'
 import { OlDrawUtil } from '@loongbao-web-gis-utils/draw-utils-base-openlayer'
+import { MlDrawUtil } from '@loongbao-web-gis-utils/draw-utils-base-maplibre'
 import { DrawState } from '@loongbao-web-gis-utils/draw-utils-base-core'
 import type { FeatureInfo, FeatureType } from '@loongbao-web-gis-utils/draw-utils-base-openlayer'
 
@@ -123,8 +132,11 @@ const state = ref<DrawState>(DrawState.IDLE)
 const features = ref<FeatureInfo[]>([])
 const selectedId = ref<string | number | null>(null)
 const creatingType = ref<FeatureType | null>(null)
-let drawUtil: OlDrawUtil
+const framework = ref<'ol' | 'ml'>('ol')
+let drawUtil: OlDrawUtil | MlDrawUtil
 let idCounter = 0
+let olMap: any = null
+let mlMap: any = null
 
 const iconPresets = [
   'none',
@@ -253,6 +265,7 @@ function onPickUp(hits: FeatureInfo[]) {
   }
 }
 function onCreated(f: FeatureInfo) {
+  console.log(f)
   state.value = drawUtil.getState(); creatingType.value = null
   const idx = features.value.findIndex(x => x.id === f.id)
   if (idx >= 0) features.value[idx] = { ...f }; else features.value.push({ ...f })
@@ -289,7 +302,7 @@ function clearAll() {
   selectedId.value = null; state.value = DrawState.IDLE
 }
 
-onMounted(() => {
+function initOlMap() {
   if (!mapEl.value) return
   useGeographic()
   const map = new OlMap({
@@ -301,7 +314,9 @@ onMounted(() => {
     })],
     view: new View({ center: [110.0, 19.0], zoom: 8 }),
   })
+  olMap = map
   drawUtil = new OlDrawUtil(map, onPickUp)
+  // OL 事件在外部绑定，因为 OlDrawUtil 不自动绑定
   map.on('click', (e: any) => {
     drawUtil.click([e.coordinate[0], e.coordinate[1]])
     state.value = drawUtil.getState(); if (state.value === DrawState.IDLE) creatingType.value = null
@@ -315,5 +330,55 @@ onMounted(() => {
     if (moveTimer) return
     moveTimer = setTimeout(() => { moveTimer = null; drawUtil.move([e.coordinate[0], e.coordinate[1]]) }, 50)
   })
+}
+
+async function initMlMap() {
+  if (!mapEl.value) return
+  await new Promise(r => requestAnimationFrame(r))
+  // 确保容器有非零尺寸
+  const el = mapEl.value
+  el.style.width = '100%'
+  el.style.height = '100%'
+  const { default: ml } = await import('maplibre-gl')
+  const tileUrl = 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7'
+  const map = new ml.Map({
+    container: mapEl.value,
+    style: { version: 8, sources: { gaode: { type: 'raster', tiles: [tileUrl], tileSize: 256, minzoom: 1, maxzoom: 18 } }, layers: [{ id: 'gaode', type: 'raster', source: 'gaode' }] },
+    center: [110.0, 19.0],
+    zoom: 8,
+  })
+  map.resize()
+  mlMap = map
+  // 静默处理 MapLibre 5.24 setData 触发的 raster 源级联崩溃 bug
+  map.on('error', (e: any) => { if (e?.error?.message?.includes('join')) return; console.error(e) })
+  drawUtil = new MlDrawUtil(map, onPickUp)
+  map.on('click', (e: any) => {
+    drawUtil.click([e.lngLat.lng, e.lngLat.lat])
+    state.value = drawUtil.getState(); if (state.value === DrawState.IDLE) creatingType.value = null
+  })
+  map.on('dblclick', (e: any) => {
+    drawUtil.dblclick([e.lngLat.lng, e.lngLat.lat])
+    state.value = drawUtil.getState(); if (state.value === DrawState.IDLE) creatingType.value = null
+  })
+  let moveTimer: ReturnType<typeof setTimeout> | null = null
+  map.on('mousemove', (e: any) => {
+    if (moveTimer) return
+    moveTimer = setTimeout(() => { moveTimer = null; drawUtil.move([e.lngLat.lng, e.lngLat.lat]) }, 50)
+  })
+}
+
+function switchFramework(fw: 'ol' | 'ml') {
+  if (olMap) { olMap.setTarget(undefined); olMap = null }
+  if (mlMap) { mlMap.remove(); mlMap = null }
+  features.value = []; selectedId.value = null
+  if (fw === 'ol') initOlMap()
+  else initMlMap()
+}
+
+watch(framework, switchFramework)
+
+onMounted(() => {
+  useGeographic()
+  initOlMap()
 })
 </script>
