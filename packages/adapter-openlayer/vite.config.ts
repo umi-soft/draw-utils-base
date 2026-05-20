@@ -6,8 +6,8 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'DrawUtilsBaseOpenlayer',
-      formats: ['es'],
-      fileName: () => 'index.js',
+      formats: ['es', 'cjs'],
+      fileName: (f) => f === 'es' ? 'index.js' : 'index.cjs',
     },
     rollupOptions: {
       external: (id: string) => /^ol(\/.*)?$/.test(id) || /^vue(\/.*)?$/.test(id) || /^maplibre-gl(\/.*)?$/.test(id),

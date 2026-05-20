@@ -69,31 +69,35 @@ importers:
 
   packages/adapter-maplibre:
     dependencies:
+      '@loongbao-web-gis-utils/draw-utils-base-core':
+        specifier: workspace:*
+        version: link:../core
       maplibre-gl:
         specifier: 5.24.0
         version: 5.24.0
     devDependencies:
-      '@loongbao-web-gis-utils/draw-utils-base-core':
-        specifier: workspace:*
-        version: link:../core
       vite:
         specifier: ^8.0.10
         version: 8.0.13(jiti@2.7.0)
 
   packages/adapter-openlayer:
     dependencies:
+      '@loongbao-web-gis-utils/draw-utils-base-core':
+        specifier: workspace:*
+        version: link:../core
       ol:
         specifier: 10.9.0
         version: 10.9.0
     devDependencies:
-      '@loongbao-web-gis-utils/draw-utils-base-core':
-        specifier: workspace:*
-        version: link:../core
       vite:
         specifier: ^8.0.10
         version: 8.0.13(jiti@2.7.0)
 
-  packages/core: {}
+  packages/core:
+    devDependencies:
+      vite:
+        specifier: ^8.0.10
+        version: 8.0.13(jiti@2.7.0)
 
 packages:
 

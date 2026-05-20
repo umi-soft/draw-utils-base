@@ -98,6 +98,11 @@
             </div>
           </div>
 
+          <div v-if="selectedFeature?.type === 'circle'">
+            <label class="text-gray-500 text-xs">radius (米)</label>
+            <input v-model.number="editDetail.radius" type="number" min="10" step="10" class="w-full bg-gray-700 rounded px-2 py-1 text-xs text-white" />
+          </div>
+
           <button class="px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-center mt-1"
             @click="applyProperties">应用属性</button>
         </div>
